@@ -24,7 +24,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download
+    - name: Maximize build space
+      uses: easimon/maximize-build-space@master
+      with:
+        root-reserve-mb: 8192
+        temp-reserve-mb: 2048
+        remove-dotnet: 'true'
+        remove-android: 'true'
+        remove-haskell: 'true'
+        remove-codeql: 'true'
+
+    - name: Download LKM Source Code
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.module-path }}
@@ -42,6 +52,7 @@ runs:
           echo "Invalid module-name: Directory ${{ inputs.module-name }} does not exist."
           exit 2
         fi
+        tree -f .
         ls -l ${{ inputs.module-name }}
         if [ ! -f "${{ inputs.module-name }}/Makefile" ]; then
           echo "${{ inputs.module-name }}/Makefile does not exist."
@@ -52,16 +63,6 @@ runs:
           exit 4
         fi
 
-    - name: Maximize build space
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 8192
-        temp-reserve-mb: 2048
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
-        remove-codeql: 'true'
-    
     - name: Install Build Tools
       uses: awalsh128/cache-apt-pkgs-action@v1
       with:
@@ -86,11 +87,14 @@ runs:
     - name: Setup Kernel Module
       shell: bash
       run: |
+        tree -f ${{ inputs.module-name }}
+
         echo "[+] Kernel Module setup"
         GKI_ROOT=$GITHUB_WORKSPACE/android-kernel
         echo "[+] GKI_ROOT: $GKI_ROOT"
         echo "[+] Copy driver to $GKI_ROOT/common/drivers"
-        ln -sf $GITHUB_WORKSPACE/${{ inputs.module-name }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
+        mv ${{ inputs.module-name }} $GKI_ROOT/common/drivers/${{ inputs.module-name }}
+        
         echo "[+] Add driver to Makefile"
         DRIVER_MAKEFILE=$GKI_ROOT/common/drivers/Makefile
         DRIVER_KCONFIG=$GKI_ROOT/common/drivers/Kconfig
